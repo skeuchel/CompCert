@@ -51,7 +51,7 @@ let name_of_unop = function
   | Ocast8signed -> "int8s"
   | Ocast16unsigned -> "int16u"
   | Ocast16signed -> "int16s"
-  | Onegint -> "-"
+  | Onegint -> "Onegint"
   | Onotint -> "~"
   | Onegf -> "-f"
   | Oabsf -> "absf"
@@ -82,18 +82,18 @@ let name_of_unop = function
   | Osingleoflongu -> "singleoflongu"
 
 let comparison_name = function
-  | Ceq -> "=="
-  | Cne -> "!="
-  | Clt -> "<"
-  | Cle -> "<="
-  | Cgt -> ">"
-  | Cge -> ">="
+  | Ceq -> "Ceq"
+  | Cne -> "Cne"
+  | Clt -> "Clt"
+  | Cle -> "Cle"
+  | Cgt -> "Cgt"
+  | Cge -> "Cge"
 
 let name_of_binop = function
-  | Oadd -> "+"
-  | Osub -> "-"
-  | Omul -> "*"
-  | Odiv -> "/"
+  | Oadd -> "Oadd"
+  | Osub -> "Osub"
+  | Omul -> "Omul"
+  | Odiv -> "Odiv"
   | Odivu -> "/u"
   | Omod -> "%"
   | Omodu -> "%u"
@@ -124,7 +124,7 @@ let name_of_binop = function
   | Oshll -> "<<l"
   | Oshrl -> ">>l"
   | Oshrlu -> ">>lu"
-  | Ocmp c -> comparison_name c
+  | Ocmp c -> "(Ocmp " ^ comparison_name c ^ ")"
   | Ocmpu c -> comparison_name c ^ "u"
   | Ocmpf c -> comparison_name c ^ "f"
   | Ocmpfs c -> comparison_name c ^ "s"
@@ -144,9 +144,9 @@ let rec expr p (prec, e) =
   else fprintf p "@[<hov 2>";
   begin match e with
   | Evar id ->
-      fprintf p "%s" (ident_name id)
+      fprintf p "(Evar %s)" (ident_name id)
   | Econst(Ointconst n) ->
-      fprintf p "%ld" (camlint_of_coqint n)
+      fprintf p "(Econst (Ointconst %ld))" (camlint_of_coqint n)
   | Econst(Ofloatconst f) ->
       fprintf p "%.15F" (camlfloat_of_coqfloat f)
   | Econst(Osingleconst f) ->
@@ -161,10 +161,9 @@ let rec expr p (prec, e) =
   | Econst(Oaddrstack n) ->
       fprintf p "&%ld" (camlint_of_coqint n)
   | Eunop(op, a1) ->
-      fprintf p "%s %a" (name_of_unop op) expr (prec', a1)
+      fprintf p "(Eunop %s %a)" (name_of_unop op) expr (prec', a1)
   | Ebinop(op, a1, a2) ->
-      fprintf p "%a@ %s %a"
-                 expr (prec1, a1) (name_of_binop op) expr (prec2, a2)
+      fprintf p "(Ebinop %s %a %a)" (name_of_binop op) expr (prec1, a1) expr (prec2, a2)
   | Eload(chunk, a1) ->
       fprintf p "%s[%a]" (name_of_chunk chunk) expr (0, a1)
   end;
@@ -208,9 +207,9 @@ let rec just_skips s =
 let rec print_stmt p s =
   match s with
   | Sskip ->
-      fprintf p "/*skip*/"
+      fprintf p "(Sskip)"
   | Sassign(id, e2) ->
-      fprintf p "@[<hv 2>%s =@ %a;@]" (ident_name id) print_expr e2
+      fprintf p "@[<hv 2>(Sassign %s %a)@]" (ident_name id) print_expr e2
   | Sstore(chunk, a1, a2) ->
       fprintf p "@[<hv 2>%s[%a] =@ %a;@]"
               (name_of_chunk chunk) print_expr a1 print_expr a2
@@ -241,24 +240,24 @@ let rec print_stmt p s =
                 (name_of_external ef)
                 print_expr_list (true, el)
 	        print_sig (ef_sig ef)
-  | Sseq(s1,s2) when just_skips s1 && just_skips s2 ->
-      ()
+(*  | Sseq(s1,s2) when just_skips s1 && just_skips s2 ->
+      () 
   | Sseq(s1, s2) when just_skips s1 ->
       print_stmt p s2
   | Sseq(s1, s2) when just_skips s2 ->
-      print_stmt p s1
+      print_stmt p s1 *)
   | Sseq(s1, s2) ->
-      fprintf p "%a@ %a" print_stmt s1 print_stmt s2
-  | Sifthenelse(e, s1, Sskip) ->
+      fprintf p "@[<hv 2>(Sseq @[<1>@ %a @ %a@])@]" print_stmt s1 print_stmt s2
+(*  | Sifthenelse(e, s1, Sskip) ->
       fprintf p "@[<v 2>if (%a) {@ %a@;<0 -2>}@]"
               print_expr e
-              print_stmt s1
+              print_stmt s1 *)
 (*  | Sifthenelse(e, Sskip, s2) ->
       fprintf p "@[<v 2>if (! %a) {@ %a@;<0 -2>}@]"
               expr (15, e)
               print_stmt s2 *)
   | Sifthenelse(e, s1, s2) ->
-      fprintf p "@[<v 2>if (%a) {@ %a@;<0 -2>} else {@ %a@;<0 -2>}@]"
+      fprintf p "@[<hv 2>(Sifthenelse @[<1>@ %a @ %a @ %a@])@]"
               print_expr e
               print_stmt s1
               print_stmt s2
@@ -285,11 +284,13 @@ let rec print_stmt p s =
   | Sreturn None ->
       fprintf p "return;"
   | Sreturn (Some e) ->
-      fprintf p "return %a;" print_expr e
+      fprintf p "(Sreturn %a)" print_expr e
   | Slabel(lbl, s1) ->
       fprintf p "%s:@ %a" (ident_name lbl) print_stmt s1  (* wrong for Cminorgen output *)
   | Sgoto lbl ->
       fprintf p "goto %s;" (ident_name lbl)               (* wrong for Cminorgen output *)
+
+    
 
 (* Functions *)
 
