@@ -191,7 +191,7 @@ let name_of_type = function
 
 let print_sig p sg =
   List.iter
-    (fun t -> fprintf p "%s ->@ " (name_of_type t))
+    (fun t -> fprintf p "%s,@ " (name_of_type t))
     sg.sig_args;
   fprintf p "%s" (name_of_rettype sg.sig_res)
 
@@ -303,18 +303,18 @@ let rec print_varlist p (vars, first) =
       print_varlist p (vl, false)
 
 let print_function p id f =
-  fprintf p "@[<hov 4>\"%s\"(@[<hov 0>%a@])@ : @[<hov 0>%a@]@]@ "
+  fprintf p "(function @[<hov 4>%s @[<hov 0>(%a)@]@ @[<hov 0>(%a)@]@]"
             (extern_atom id)
             print_varlist (f.fn_params, true)
             print_sig f.fn_sig;
-  fprintf p "@[<v 2>{@ ";
+  fprintf p "@[<v 2>@ ";
   let stksz = Z.to_int32 f.fn_stackspace in
   if stksz <> 0l then
     fprintf p "stack %ld;@ " stksz;
   if f.fn_vars <> [] then
     fprintf p "var @[<hov 0>%a;@]@ " print_varlist (f.fn_vars, true);
   print_stmt p f.fn_body;
-  fprintf p "@;<0 -2>}@]@ "
+  fprintf p "@;<0 -2>)@]@ "
 
 let print_extfun p id ef =
   fprintf p "@[<v 0>extern @[<hov 2>\"%s\" =@ %s :@ %a@]@]@ "
@@ -372,3 +372,5 @@ let print_if prog =
       let oc = open_out f in
       print_program (formatter_of_out_channel oc) prog;
       close_out oc
+
+
