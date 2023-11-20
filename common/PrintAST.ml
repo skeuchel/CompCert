@@ -21,32 +21,32 @@ open Camlcoq
 open AST
 
 let name_of_type = function
-  | Tint -> "int"
-  | Tfloat -> "float"
-  | Tlong -> "long"
-  | Tsingle -> "single"
-  | Tany32 -> "any32"
-  | Tany64 -> "any64"
+  | Tint -> "Tint"
+  | Tfloat -> "Tfloat"
+  | Tlong -> "Tlong"
+  | Tsingle -> "Tsingle"
+  | Tany32 -> "Tany32"
+  | Tany64 -> "Tany64"
 
 let name_of_rettype = function
-  | Tret t -> name_of_type t
-  | Tvoid -> "void"
-  | Tint8signed -> "int8s"
-  | Tint8unsigned -> "int8u"
-  | Tint16signed -> "int16s"
-  | Tint16unsigned -> "int16u"
+  | Tret t -> "(Tret " ^ name_of_type t ^ ")"
+  | Tvoid -> "Tvoid"
+  | Tint8signed -> "Tint8signed"
+  | Tint8unsigned -> "Tint8unsigned"
+  | Tint16signed -> "Tint16signed"
+  | Tint16unsigned -> "Tint16unsigned"
 
 let name_of_chunk = function
-  | Mint8signed -> "int8s"
-  | Mint8unsigned -> "int8u"
-  | Mint16signed -> "int16s"
-  | Mint16unsigned -> "int16u"
-  | Mint32 -> "int32"
-  | Mint64 -> "int64"
-  | Mfloat32 -> "float32"
-  | Mfloat64 -> "float64"
-  | Many32 -> "any32"
-  | Many64 -> "any64"
+  | Mint8signed -> "Mint8signed"
+  | Mint8unsigned -> "Mint8unsigned"
+  | Mint16signed -> "Mint16signed"
+  | Mint16unsigned -> "Mint16unsigned"
+  | Mint32 -> "Mint32"
+  | Mint64 -> "Mint64"
+  | Mfloat32 -> "Mfloat32"
+  | Mfloat64 -> "Mfloat64"
+  | Many32 -> "Many32"
+  | Many64 -> "Many64"
 
 let name_of_external = function
   | EF_external(name, sg) -> sprintf "extern %S" (camlstring_of_coqstring name)
