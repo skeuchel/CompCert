@@ -290,7 +290,7 @@ let print_function p id f =
   let stksz = Z.to_int32 f.fn_stackspace in
   fprintf p "(stack %ld)@ " stksz;
   fprintf p "(vars@[<hov 0>%a)@]@ " print_varlist (f.fn_vars, false);
-  print_stmt p f.fn_body;
+  print_stmt p f.fn_body; 
   fprintf p ")@]@ "
 
 let print_extfun p id ef =
@@ -349,3 +349,5 @@ let print_if prog =
       let oc = open_out f in
       print_program (formatter_of_out_channel oc) prog;
       close_out oc
+
+
