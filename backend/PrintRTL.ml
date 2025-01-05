@@ -38,29 +38,58 @@ let print_succ pp s dfl =
   let s = P.to_int s in
   if s <> dfl then fprintf pp "\tgoto %d\n" s
 
+let print_xtype = function
+  | Xbool -> "Xbool"
+  | Xint8signed -> "Xint8signed"
+  | Xint8unsigned -> "Xint8unsigned"
+  | Xint16signed -> "Xint16signed"
+  | Xint16unsigned -> "Xint16unsigned"
+  | Xint -> "Xint"
+  | Xfloat -> "Xfloat"
+  | Xlong -> "Xlong"
+  | Xsingle -> "Xsingle"
+  | Xptr -> "Xptr"
+  | Xany32 -> "Xany32"
+  | Xany64 -> "Xany64"
+  | Xvoid -> "Xvoid"
+
+let print_sig p sg =
+  List.iter
+    (fun t -> fprintf p "%s,@ " (print_xtype t))
+    sg.sig_args;
+  fprintf p "%s" (print_xtype sg.sig_res)
+
+let ident_name id = "\"" ^ Camlcoq.extern_atom id ^ "\""
+
+let rec print_varlist p (vars, first) =
+  match vars with
+  | [] -> ()
+  | v1 :: vl ->
+      if not first then fprintf p ",@ ";
+      fprintf p "%s" (ident_name v1);
+      print_varlist p (vl, false)
+
 let print_instruction pp (pc, i) =
   fprintf pp "%5d:\t" pc;
   match i with
   | Inop s ->
       let s = P.to_int s in
-      if s = pc - 1
-      then fprintf pp "nop\n"
-      else fprintf pp "goto %d\n" s
+      fprintf pp "(%d, Inop %d)" pc s
   | Iop(op, args, res, s) ->
-      fprintf pp "%a = %a\n"
-         reg res (PrintOp.print_operation reg) (op, args);
-      print_succ pp s (pc - 1)
+      let s = P.to_int s in
+      fprintf pp "(%d, Iop %a %a %d)"
+         pc reg res (PrintOp.print_operation reg) (op, args) s
   | Iload(chunk, addr, args, dst, s) ->
-      fprintf pp "%a = %s[%a]\n"
-         reg dst (name_of_chunk chunk)
-         (PrintOp.print_addressing reg) (addr, args);
-      print_succ pp s (pc - 1)
+      let s = P.to_int s in
+      fprintf pp "(%d, Iload %a %s %a %d)"
+         pc reg dst (name_of_chunk chunk)
+         (PrintOp.print_addressing reg) (addr, args) s
   | Istore(chunk, addr, args, src, s) ->
-      fprintf pp "%s[%a] = %a\n"
-         (name_of_chunk chunk)
+      let s = P.to_int s in
+      fprintf pp "(%d, Istore %s %a %a %d)"
+         pc (name_of_chunk chunk)
          (PrintOp.print_addressing reg) (addr, args)
-         reg src;
-      print_succ pp s (pc - 1)
+         reg src s
   | Icall(sg, fn, args, res, s) ->
       fprintf pp "%a = %a(%a)\n"
         reg res ros fn regs args;
@@ -89,18 +118,25 @@ let print_instruction pp (pc, i) =
   | Ireturn (Some arg) ->
       fprintf pp "return %a\n" reg arg
 
-let print_function pp id f =
-  fprintf pp "%s(%a) {\n" (extern_atom id) regs f.fn_params;
+let print_code pp code =
   let instrs =
     List.sort
       (fun (pc1, _) (pc2, _) -> compare pc2 pc1)
       (List.rev_map
         (fun (pc, i) -> (P.to_int pc, i))
-        (PTree.elements f.fn_code)) in
-  print_succ pp f.fn_entrypoint
-    (match instrs with (pc1, _) :: _ -> pc1 | [] -> -1);
-  List.iter (print_instruction pp) instrs;
-  fprintf pp "}\n\n"
+        (PTree.elements code)) in
+  List.iter (print_instruction pp) instrs
+
+let print_function pp id f =
+  fprintf pp "(MkFunction @[<hov 4>%s @[<hov 0>(%a)@]@ @[<hov 0>(%a)@]@]"
+    (extern_atom id)
+    print_varlist (f.fn_params, true)
+    print_sig f.fn_sig;
+  fprintf pp "@[<v 2>@ ";
+  fprintf pp "%ld;@ " (Z.to_int32 f.fn_stacksize);
+  print_code pp f.fn_code;
+  fprintf pp "%d;@ " (P.to_int f.fn_entrypoint);
+  fprintf pp "@;<0 -2>@])@ "
 
 let print_globdef pp (id, gd) =
   match gd with
